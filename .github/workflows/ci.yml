@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g snyk
-        pip install -r requirements.txt || true
+        npm install || true
         
     - name: Authenticate Snyk
       run: snyk auth ${{ secrets.SNYK_TOKEN }}
@@ -41,7 +41,7 @@ jobs:
     - name: Run Snyk Code Analysis
       id: snyk-scan
       run: |
-        echo "Starting AI-powered security scan..."
+        echo "Starting AI-powered security scan on Node.js application..."
         snyk code test \
           --sarif-file-output=snyk-results.sarif \
           --severity-threshold=medium \
@@ -55,6 +55,8 @@ jobs:
         echo "high_issues=$HIGH_ISSUES" >> $GITHUB_OUTPUT
         echo "critical_issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
         echo "total_issues=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
+        
+        echo "Scan Results: Total=$TOTAL_ISSUES, Critical=$CRITICAL_ISSUES, High=$HIGH_ISSUES"
         
     - name: Upload SARIF results
       uses: github/codeql-action/upload-sarif@v3
