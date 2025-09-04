@@ -38,60 +38,26 @@ jobs:
     - name: Authenticate Snyk
       run: snyk auth ${{ secrets.SNYK_TOKEN }}
       
-    - name: Run Snyk Code Analysis (Enhanced Debug)
+    - name: Run Snyk Code Analysis
       id: snyk-scan
       run: |
-        echo "Starting explicit Snyk Code scan..."
-        
-        # Ensure we're scanning code, not just dependencies
-        echo "Running snyk code test with full debugging..."
-        snyk code test --json --sarif-file-output=snyk-results.sarif > snyk-results.json 2>&1 || true
-        
-        echo "=== Raw Snyk Output ==="
-        cat snyk-results.json || echo "No JSON output"
-        
-        echo "=== SARIF Output Check ==="
-        ls -la snyk-results.sarif || echo "No SARIF file"
-        
-        # Try alternative scan methods if first fails
-        if [ ! -s snyk-results.json ] || [ "$(cat snyk-results.json)" = "" ]; then
-          echo "Primary scan failed, trying alternatives..."
+        echo "Starting AI-powered security scan..."
+        snyk code test \
+          --sarif-file-output=snyk-results.sarif \
+          --severity-threshold=medium \
+          --json > snyk-results.json || true
           
-          # Method 2: Scan specific files
-          snyk code test src/ --json > snyk-results.json 2>&1 || true
-          
-          # Method 3: Force all project scanning
-          snyk code test --all-projects --json > snyk-results.json 2>&1 || true
-        fi
-        
-        echo "=== Final Results Check ==="
-        cat snyk-results.json | head -50
-        
-        # Extract metrics (with better error handling)
-        if [ -f snyk-results.json ] && [ -s snyk-results.json ]; then
-          # Check if it's valid JSON first
-          if jq empty snyk-results.json 2>/dev/null; then
-            TOTAL_ISSUES=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
-            HIGH_ISSUES=$(jq '.vulnerabilities | map(select(.severity == "high")) | length' snyk-results.json 2>/dev/null || echo "0")
-            CRITICAL_ISSUES=$(jq '.vulnerabilities | map(select(.severity == "critical")) | length' snyk-results.json 2>/dev/null || echo "0")
-          else
-            echo "Invalid JSON output from Snyk"
-            TOTAL_ISSUES=0
-            HIGH_ISSUES=0
-            CRITICAL_ISSUES=0
-          fi
-        else
-          echo "No results file generated"
-          TOTAL_ISSUES=0
-          HIGH_ISSUES=0
-          CRITICAL_ISSUES=0
-        fi
-        
-        echo "Final counts: Total=$TOTAL_ISSUES, High=$HIGH_ISSUES, Critical=$CRITICAL_ISSUES"
+        # Extract metrics with better error handling for SARIF format
+        TOTAL_ISSUES=$(jq -r '.runs[0].results | length' snyk-results.json 2>/dev/null || echo "0")
+        HIGH_ISSUES=$(jq -r '.runs[0].results | map(select(.level == "error")) | length' snyk-results.json 2>/dev/null || echo "0") 
+        CRITICAL_ISSUES=$(jq -r '.runs[0].results | map(select(.ruleId | test("CodeInjection|CommandInjection|PT"))) | length' snyk-results.json 2>/dev/null || echo "0")
         
         echo "high_issues=$HIGH_ISSUES" >> $GITHUB_OUTPUT
         echo "critical_issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
         echo "total_issues=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
+        
+        echo "Scan Results: Total=$TOTAL_ISSUES, Critical=$CRITICAL_ISSUES, High=$HIGH_ISSUES"
+
 
         
     - name: Upload SARIF results
