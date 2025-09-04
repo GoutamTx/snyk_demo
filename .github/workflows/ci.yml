@@ -82,10 +82,10 @@ jobs:
           --commit-sha ${{ github.sha }}
           
     - name: Upload Security Metrics
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: security-metrics
+        name: security-metrics-${{ github.event.number }}
         path: |
           security-metrics-*.json
           metrics-summary.txt
