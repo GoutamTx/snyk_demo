@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g snyk
-        pip install -r requirements.txt || true
+        npm install || true
         
     - name: Authenticate Snyk
       run: snyk auth ${{ secrets.SNYK_TOKEN }}
@@ -47,17 +47,21 @@ jobs:
           --severity-threshold=medium \
           --json > snyk-results.json || true
           
-        # Extract metrics
-        HIGH_ISSUES=$(jq '.vulnerabilities | map(select(.severity == "high")) | length' snyk-results.json 2>/dev/null || echo "0")
-        CRITICAL_ISSUES=$(jq '.vulnerabilities | map(select(.severity == "critical")) | length' snyk-results.json 2>/dev/null || echo "0")
-        TOTAL_ISSUES=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
+        # Extract metrics with better error handling for SARIF format
+        TOTAL_ISSUES=$(jq -r '.runs[0].results | length' snyk-results.json 2>/dev/null || echo "0")
+        HIGH_ISSUES=$(jq -r '.runs[0].results | map(select(.level == "error")) | length' snyk-results.json 2>/dev/null || echo "0") 
+        CRITICAL_ISSUES=$(jq -r '.runs[0].results | map(select(.ruleId | test("CodeInjection|CommandInjection|PT"))) | length' snyk-results.json 2>/dev/null || echo "0")
         
         echo "high_issues=$HIGH_ISSUES" >> $GITHUB_OUTPUT
         echo "critical_issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
         echo "total_issues=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
         
+        echo "Scan Results: Total=$TOTAL_ISSUES, Critical=$CRITICAL_ISSUES, High=$HIGH_ISSUES"
+
+
+        
     - name: Upload SARIF results
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: snyk-results.sarif
         category: snyk-code
