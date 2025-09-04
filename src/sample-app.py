@@ -29,3 +29,4 @@ def generate_token():
 if __name__ == "__main__":
     print("Sample app with security issues for testing")
 
+# Test change for security scan
