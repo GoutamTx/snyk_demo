@@ -1,32 +1,62 @@
-# Sample application with intentional security issues for testing
+#!/usr/bin/env python3
+"""
+Deliberately vulnerable application for testing security scanners
+"""
 import sqlite3
-import hashlib
+import subprocess
 import os
+import hashlib
+from flask import Flask, request
 
-# Weak cryptography - should trigger AI scanner
-def weak_hash(data):
-    return hashlib.md5(data.encode()).hexdigest()  # Weak hash algorithm
+app = Flask(__name__)
 
-# SQL Injection vulnerability
-def get_user_data(user_id):
+# High-severity issues that should trigger Snyk Code
+SECRET_KEY = "sk-1234567890abcdef"  # Hardcoded API key
+DATABASE_PASSWORD = "admin123"      # Hardcoded password
+JWT_SECRET = "my-secret-jwt-key"    # Hardcoded JWT secret
+
+@app.route('/user/<user_id>')
+def get_user(user_id):
+    """SQL Injection vulnerability"""
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
     
-    # Vulnerable SQL query - should trigger scanner
-    query = f"SELECT * FROM users WHERE id = {user_id}"
+    # Direct SQL injection - should definitely trigger
+    query = "SELECT * FROM users WHERE id = '" + user_id + "'"
     cursor.execute(query)
     
     return cursor.fetchall()
 
-# Hardcoded secret - should trigger scanner
-API_KEY = "sk-1234567890abcdef"  # Hardcoded API key
+@app.route('/execute')
+def execute_command():
+    """Command Injection vulnerability"""
+    cmd = request.args.get('cmd', 'ls')
+    
+    # Command injection - critical vulnerability
+    result = subprocess.run(cmd, shell=True, capture_output=True)
+    return result.stdout
 
-# Insecure random number generation
-def generate_token():
+@app.route('/file')
+def read_file():
+    """Path Traversal vulnerability"""
+    filename = request.args.get('file', 'default.txt')
+    
+    # Path traversal - should trigger
+    with open('/app/files/' + filename, 'r') as f:
+        return f.read()
+
+def weak_crypto_hash(password):
+    """Weak cryptography"""
+    # MD5 is cryptographically broken
+    return hashlib.md5(password.encode()).hexdigest()
+
+def insecure_random():
+    """Weak random number generation"""
     import random
-    return str(random.random())  # Weak random generation
+    # Using predictable random
+    return str(random.random())
 
-if __name__ == "__main__":
-    print("Sample app with security issues for testing")
+# Exposed debug mode
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0')  # Should trigger security warning
 
-# Test change for security scan

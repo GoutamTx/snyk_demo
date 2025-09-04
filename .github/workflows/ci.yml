@@ -57,7 +57,7 @@ jobs:
         echo "total_issues=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
         
     - name: Upload SARIF results
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: snyk-results.sarif
         category: snyk-code
